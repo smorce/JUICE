@@ -1,5 +1,5 @@
 <p align="center">
-<img src="https://raw.githubusercontent.com/smorce/JUICE/main/assets/JUICE.png" width="100%">
+<img src="https://raw.githubusercontent.com/smorce/JUICE/main/juice/assets/JUICE.png" width="100%">
 <br>
 <h1 align="center">JUICE</h1>
 <h2 align="center">
