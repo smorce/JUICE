@@ -21,7 +21,7 @@ git pull origin develop
 # mainブランチにdevelopをマージ
 echo_step "Merging develop into main"
 git checkout main
-git merge develop
+git merge develop --no-edit
 
 # 変更をステージングに追加
 echo_step "Staging changes"
