@@ -10,6 +10,6 @@ git tag -a v0.0.0 $SECOND_LAST_COMMIT -m "Initial version"
 git tag -a v0.1.0 -m "First minor version"
 
 # タグをリモートにプッシュ（オプション）
-# git push origin v0.0.0 v0.1.0
+git push origin v0.0.0 v0.1.0
 
 echo "タグが正常に作成されました。"
