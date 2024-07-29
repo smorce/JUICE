@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>D-ID AI Chatbot</title>
+  <style>
+    #video-container {
+      position: relative;
+      width: 640px;
+      height: 480px;
+    }
+
+    #idle-video-element, #stream-video-element {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #stream-video-element {
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+    }
+
+    .status-labels {
+      margin-top: 10px;
+      font-family: monospace;
+    }
+
+    .status-labels span {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>D-ID AI Chatbot</h1>
+
+  <div id="video-container">
+    <video id="idle-video-element" autoplay muted loop></video>
+    <video id="stream-video-element" autoplay muted></video>
+  </div>
+
+  <button id="connect-button">Connect</button>
+  <button id="start-button">Start Streaming</button>
+  <button id="destroy-button">Destroy</button>
+
+  <div class="status-labels">
+    <span id="status-label">準備完了</span>
+  </div>
+
+  <script src="script.js"></script> 
+</body>
+</html>
