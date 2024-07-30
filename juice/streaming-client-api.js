@@ -1,10 +1,15 @@
-'use strict';
+// YAML ファイルを読み込む
+import yaml from 'js-yaml';
 
-// js-yaml を使用して YAML ファイルを読み込む
-import YAML from 'js-yaml';
+// import YAML from 'js-yaml';
+// api.yaml ファイルを読み込む
+// const apiConfig = YAML.load(await fetch('./api.yaml').then(res => res.text()));
 
 // api.yaml ファイルを読み込む
-const apiConfig = YAML.load(await fetch('./api.yaml').then(res => res.text()));
+const response = await fetch('./api.yaml');
+const yamlText = await response.text();
+const apiConfig = yaml.load(yamlText);
+
 
 // API キーの存在チェック
 if (!apiConfig.dId.key || !apiConfig.openAI.key || !apiConfig.elevenLabs.key) {
