@@ -38,8 +38,8 @@ let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
 
-const streamWarmup = true;
-let isStreamReady = !streamWarmup;
+const stream_warmup = true;
+let isStreamReady = !stream_warmup;
 
 const idleVideoElement = document.getElementById('idle-video-element');
 const streamVideoElement = document.getElementById('stream-video-element');
@@ -49,7 +49,8 @@ const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    source_url: 'assets/stela.png',
+    // source_url: 'https://d-id-public-bucket.s3.amazonaws.com/or-roman.jpg',
+    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_compressed.jpg',
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
@@ -67,9 +68,6 @@ connectButton.onclick = async () => {
   closePC();
 
   statusLabel.textContent = "接続中...";
-
-  // stream_warmup を false に設定して、アイドルストリーミングはしない
-  const stream_warmup = false;
 
   const sessionResponse = await fetchWithRetries(`${DID_API.url}/${DID_API.service}/streams`, {
     method: 'POST',
@@ -330,7 +328,7 @@ function closePC(pc = peerConnection) {
   pc.removeEventListener('onmessage', onStreamEvent, true);
 
   clearInterval(statsIntervalId);
-  isStreamReady = !streamWarmup;
+  isStreamReady = !stream_warmup;
   streamVideoOpacity = 0;
   console.log('Stopped peer connection');
   if (pc === peerConnection) {
