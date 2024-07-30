@@ -44,7 +44,7 @@ const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    source_url: 'https://d-id-public-bucket.s3.amazonaws.com/or-roman.jpg',
+    source_url: 'assets/stela.png',
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
