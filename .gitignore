@@ -162,6 +162,7 @@ cython_debug/
 
 # 追加
 SourceSageとAIRAの使い方/
+node_modules/
 
 SourceSageAssets
 tmp.md
