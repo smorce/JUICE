@@ -1,10 +1,6 @@
 // YAML ファイルを読み込む
 import yaml from 'js-yaml';
 
-// import YAML from 'js-yaml';
-// api.yaml ファイルを読み込む
-// const apiConfig = YAML.load(await fetch('./api.yaml').then(res => res.text()));
-
 // api.yaml ファイルを読み込む
 const response = await fetch('./api.yaml');
 const yamlText = await response.text();
@@ -49,8 +45,7 @@ const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    // source_url: 'https://d-id-public-bucket.s3.amazonaws.com/or-roman.jpg',
-    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_compressed.jpg',
+    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_removebg.png',  // 背景を消したら通った
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
@@ -303,7 +298,7 @@ function setStreamVideoElement(stream) {
 }
 
 function playIdleVideo() {
-  idleVideoElement.src = DID_API.service == 'clips' ? 'rian_idle.mp4' : 'or_idle.mp4';
+  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela_idle.mp4';
 }
 
 function stopAllStreams() {
