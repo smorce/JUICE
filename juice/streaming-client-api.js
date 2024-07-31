@@ -1,10 +1,6 @@
 // YAML ファイルを読み込む
 import yaml from 'js-yaml';
 
-// import YAML from 'js-yaml';
-// api.yaml ファイルを読み込む
-// const apiConfig = YAML.load(await fetch('./api.yaml').then(res => res.text()));
-
 // api.yaml ファイルを読み込む
 const response = await fetch('./api.yaml');
 const yamlText = await response.text();
@@ -38,18 +34,19 @@ let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
 
-const streamWarmup = true;
-let isStreamReady = !streamWarmup;
+const stream_warmup = true;
+let isStreamReady = !stream_warmup;
 
 const idleVideoElement = document.getElementById('idle-video-element');
 const streamVideoElement = document.getElementById('stream-video-element');
 idleVideoElement.setAttribute('playsinline', '');
 streamVideoElement.setAttribute('playsinline', '');
+const statusContainer = document.querySelector('.status-container');
 const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    source_url: 'assets/stela.png',
+    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_removebg.png',  // 背景を消したら通った。サーバーにアップロードしたファイルでないと D-iD の API は受け取れない
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
@@ -66,6 +63,7 @@ connectButton.onclick = async () => {
   stopAllStreams();
   closePC();
 
+  statusContainer.className = 'status-container connecting';
   statusLabel.textContent = "接続中...";
 
   // stream_warmup を false に設定して、アイドルストリーミングはしない
@@ -88,6 +86,7 @@ connectButton.onclick = async () => {
     sessionClientAnswer = await createPeerConnection(offer, iceServers);
   } catch (e) {
     console.error('Error during streaming setup', e);
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "エラー発生";
     stopAllStreams();
     closePC();
@@ -106,6 +105,7 @@ connectButton.onclick = async () => {
     }),
   });
 
+  statusContainer.className = 'status-container connected';
   statusLabel.textContent = "接続完了";
 };
 
@@ -117,6 +117,7 @@ startButton.onclick = () => {
   ) {
     startSpeechRecognition();
   } else {
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "まだ接続されていません";
   }
 };
@@ -135,6 +136,7 @@ destroyButton.onclick = async () => {
   stopAllStreams();
   closePC();
 
+  statusContainer.className = 'status-container error';
   statusLabel.textContent = "接続を切断しました";
 };
 
@@ -179,6 +181,7 @@ function onIceConnectionStateChange() {
   if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'closed') {
     stopAllStreams();
     closePC();
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "接続が切断されました";
   }
 }
@@ -191,7 +194,8 @@ function onConnectionStateChange() {
       if (!isStreamReady) {
         console.log('Forcing stream/ready');
         isStreamReady = true;
-        statusLabel.textContent = "準備完了";
+        statusContainer.className = 'status-container ready';
+        statusLabel.textContent = "準備完了1";
       }
     }, 5000);
   }
@@ -220,6 +224,7 @@ function onVideoStatusChange(videoIsPlaying, stream) {
 function onTrack(event) {
   if (!event.track) return;
 
+  // ビデオフレームの受信を定期的にチェック
   statsIntervalId = setInterval(async () => {
     const stats = await peerConnection.getStats(event.track);
     stats.forEach((report) => {
@@ -251,6 +256,7 @@ function onStreamEvent(message) {
         setTimeout(() => {
           console.log('Stream ready');
           isStreamReady = true;
+          statusContainer.className = 'status-container ready';
           statusLabel.textContent = "準備完了";
         }, 1000);
         break;
@@ -305,7 +311,7 @@ function setStreamVideoElement(stream) {
 }
 
 function playIdleVideo() {
-  idleVideoElement.src = DID_API.service == 'clips' ? 'rian_idle.mp4' : 'or_idle.mp4';
+  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela_idle.mp4';
 }
 
 function stopAllStreams() {
@@ -330,7 +336,7 @@ function closePC(pc = peerConnection) {
   pc.removeEventListener('onmessage', onStreamEvent, true);
 
   clearInterval(statsIntervalId);
-  isStreamReady = !streamWarmup;
+  isStreamReady = !stream_warmup;
   streamVideoOpacity = 0;
   console.log('Stopped peer connection');
   if (pc === peerConnection) {
@@ -380,6 +386,7 @@ function startSpeechRecognition() {
 
   recognition.onerror = (event) => {
     console.error('音声認識エラー:', event.error);
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "音声認識エラー";
   };
 
@@ -405,11 +412,11 @@ async function getGPTResponse(prompt) {
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'あなたはとても賢いAIアシスタントです。' },
+        { role: 'system', content: 'あなたはとても賢いAIアシスタントです。あなたはステラという女性になりきってユーザーに楽しい会話を提供します。'},
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 150
+      max_tokens: 100
     })
   });
 
@@ -420,6 +427,35 @@ async function getGPTResponse(prompt) {
   return gptMessage;
 }
 
+// 音声ファイルをアップロード
+async function uploadAudio(audioBlob) {
+  // tmpfiles.org APIを使用してファイルをアップロード
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'audio.mp3');
+
+  try {
+    const response = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error('音声のアップロードに失敗しました');
+    }
+
+    const data = await response.json();
+    
+    // tmpfiles.orgの応答からダウンロードURLを取得
+    const downloadUrl = data.data.url.replace('https://tmpfiles.org/', 'https://tmpfiles.org/dl/');
+    
+    console.log('音声ファイルのアップロードに成功しました。');
+    console.log('アップしたファイルURL:', downloadUrl);
+    return downloadUrl;
+  } catch (error) {
+    console.error('音声のアップロード中にエラーが発生しました:', error);
+    throw error;
+  }
+}
 
 async function synthesizeSpeech(text) {
   statusLabel.textContent = "音声合成中...";
@@ -433,12 +469,11 @@ async function synthesizeSpeech(text) {
         'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
         'xi-api-key': ELEVENLABS_API_KEY,
-         // api.yaml から読み込んだ API キーを使用
       },
       body: JSON.stringify({
         'text': text,
         'model_id': 'eleven_turbo_v2_5',
-        'language_code': 'ja-JP',
+        'language_code': 'ja',
         'voice_settings': {
           'stability': 0.5,
           'similarity_boost': 0.5,
@@ -449,14 +484,12 @@ async function synthesizeSpeech(text) {
     if (!response.ok) {
       throw new Error(`ElevenLabs API Error: ${response.status} ${response.statusText}`);
     }
-
-    // JavaScript はブラウザ上で動作するため、サーバーサイドのようにローカルファイルシステムに直接アクセスできません。そこで、一時的に音声データを保持するために `Blob` オブジェクトと `URL.createObjectURL()` を使用します。
     const audioBlob = await response.blob();
-    const audioURL = URL.createObjectURL(audioBlob);
-    console.log('音声URL:', audioURL);   // ~~~.mp3 になっていればOK
+    const audioURL = await uploadAudio(audioBlob);
     return audioURL;
   } catch (error) {
     console.error('音声合成エラー:', error);
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "音声合成エラー";
     // エラー処理を実装
   }
@@ -474,7 +507,7 @@ async function sendScriptToDId(audioURL) {
     body: JSON.stringify({
       script: {
         type: 'audio',
-        audio_url: audioURL,
+        audio_url: `${audioURL}`,
       // 以下はGemini Proが生成したコードだけど元々なかったので一旦消してみる
       //   ...(DID_API.service === 'talks' && {
       //     provider: {
@@ -497,6 +530,7 @@ async function sendScriptToDId(audioURL) {
 
   if (!playResponse.ok) {
     console.error('D-ID API Error:', playResponse.status, await playResponse.text());
+    statusContainer.className = 'status-container error';
     statusLabel.textContent = "D-ID API エラー";
     return;
   }

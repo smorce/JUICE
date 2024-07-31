@@ -2,11 +2,19 @@
 <html>
 <head>
   <title>D-ID AI Chatbot</title>
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon"> 
   <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     #video-container {
       position: relative;
-      width: 640px;
-      height: 480px;
+      width: 800px;
+      height: 600px;  /* 800pxから600pxに変更 */
+      overflow: hidden;
     }
 
     #idle-video-element, #stream-video-element {
@@ -14,13 +22,17 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 100%;
+      height: 133.33%;  /* 100%から133.33%に変更 */
       object-fit: cover;
     }
 
     #stream-video-element {
       opacity: 0;
       transition: opacity 0.5s ease-in-out;
+    }
+
+    .controls {
+      margin-top: 10px;
     }
 
     .status-labels {
@@ -31,21 +43,72 @@
     .status-labels span {
       margin-right: 10px;
     }
+
+    .status-container {
+      display: flex;
+      align-items: center;
+      background-color: #f0f0f0;
+      padding: 8px 16px;
+      border-radius: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #4CAF50; /* デフォルトは緑 */
+      margin-right: 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    #status-label {
+      font-family: 'Arial', sans-serif;
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* ステータスに応じて色を変更する例 */
+    /* 準備完了（デフォルト）: 緑 */
+    .status-container.ready .status-dot {
+      background-color: #4CAF50;
+    }
+
+    /* 接続中: 青 */
+    .status-container.connecting .status-dot {
+      background-color: #2196F3;
+    }
+
+    /* 接続完了: 青 */
+    .status-container.connected .status-dot {
+      background-color: #2196F3;
+    }
+
+    /* エラー: 赤 */
+    .status-container.error .status-dot {
+      background-color: #F44336;
+    }
   </style>
 </head>
 <body>
   <h1>D-ID AI Chatbot</h1>
 
   <div id="video-container">
-    <video id="idle-video-element" autoplay muted loop></video>
-    <video id="stream-video-element" autoplay muted></video>
+    <video id="idle-video-element" autoplay loop style="opacity: 1"></video>
+    <video id="stream-video-element" autoplay style="opacity: 0"></video>
   </div>
 
-  <button id="connect-button">Connect</button>
-  <button id="start-button">Start Streaming</button>
-  <button id="destroy-button">Destroy</button>
+  <div class="controls">
+    <button id="connect-button">Connect</button>
+    <button id="start-button">Start Streaming</button>
+    <button id="destroy-button">Destroy</button>
+  </div>
 
-  <div class="status-labels">
+  <div class="status-container">
+    <span class="status-dot"></span>
     <span id="status-label">準備完了</span>
   </div>
 
@@ -55,7 +118,7 @@
         "js-yaml": "https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.mjs"
       }
     }
-    </script>
+  </script>
   <script type="module" src="streaming-client-api.js"></script>
 </body>
 </html>
