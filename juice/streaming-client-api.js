@@ -29,8 +29,8 @@ let streamId;
 let sessionId;
 let sessionClientAnswer;
 
-let statsIntervalId = null; // グローバルスコープで定義
-let lastBytesReceived;
+let statsIntervalId = null;
+// let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
 
@@ -545,13 +545,6 @@ async function sendScriptToDId(audioURL) {
       script: {
         type: 'audio',
         audio_url: `${audioURL}`,
-      // 以下はGemini Proが生成したコードだけど元々なかったので一旦消してみる
-      //   ...(DID_API.service === 'talks' && {
-      //     provider: {
-      //       type: "microsoft",
-      //       voice_id: "ja-JP-KeitaNeural" // 音声IDを指定
-      //     }
-      //   })
       },
       ...(DID_API.service === 'clips' && {
         background: {
