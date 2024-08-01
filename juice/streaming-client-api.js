@@ -46,7 +46,7 @@ const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_removebg.png',  // 背景を消したら通った。サーバーにアップロードしたファイルでないと D-iD の API は受け取れない
+    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela2_removebg.png',  // 背景を消したら通った。サーバーにアップロードしたファイルでないと D-iD の API は受け取れない
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
@@ -308,7 +308,7 @@ function setStreamVideoElement(stream) {
 }
 
 function playIdleVideo() {
-  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela_idle.mp4';
+  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela2_idle.mp4';
 }
 
 function stopAllStreams() {

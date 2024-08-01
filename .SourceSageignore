@@ -36,5 +36,11 @@ issue_creator.log
 issue_response.txt
 
 .ipynb_checkpoints
+
+# 追加
 api.yaml
 node_modules
+SourceSageとAIRAの使い方
+README.md
+package-lock.json
+.harmon_ai
