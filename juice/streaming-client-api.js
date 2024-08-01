@@ -29,7 +29,7 @@ let streamId;
 let sessionId;
 let sessionClientAnswer;
 
-let statsIntervalId;
+let statsIntervalId = null; // グローバルスコープで定義
 let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
@@ -218,23 +218,32 @@ function onVideoStatusChange(videoIsPlaying, stream) {
   idleVideoElement.style.opacity = 1 - streamVideoOpacity;
 }
 
+// ビデオフレームを定期的に監視
 function onTrack(event) {
   if (!event.track) return;
 
-  // ビデオフレームの受信を定期的にチェック
-  statsIntervalId = setInterval(async () => {
-    const stats = await peerConnection.getStats(event.track);
-    stats.forEach((report) => {
-      if (report.type === 'inbound-rtp' && report.kind === 'video') {
-        const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
+  // 既存のインターバルをクリア
+  if (statsIntervalId) {
+    clearInterval(statsIntervalId);
+    statsIntervalId = null;
+  }
 
-        if (videoStatusChanged) {
-          videoIsPlaying = report.bytesReceived > lastBytesReceived;
-          onVideoStatusChange(videoIsPlaying, event.streams[0]);
-        }
-        lastBytesReceived = report.bytesReceived;
+  // 新しいインターバルを設定
+  statsIntervalId = setInterval(async () => {
+    if (peerConnection) {
+      try {
+        const stats = await peerConnection.getStats(event.track);
+        // ... (既存のコード)
+      } catch (error) {
+        console.error('Error getting stats:', error);
+        clearInterval(statsIntervalId);
+        statsIntervalId = null;
       }
-    });
+    } else {
+      console.log('PeerConnection is null, clearing interval');
+      clearInterval(statsIntervalId);
+      statsIntervalId = null;
+    }
   }, 500);
 }
 
@@ -248,6 +257,7 @@ function onStreamEvent(message) {
         break;
       case 'stream/done':
         console.log('Stream done');
+        statusLabel.textContent = "ストリーミング終了";
         break;
       case 'stream/ready':
         setTimeout(() => {
@@ -332,7 +342,12 @@ function closePC(pc = peerConnection) {
   pc.removeEventListener('track', onTrack, true);
   pc.removeEventListener('onmessage', onStreamEvent, true);
 
-  clearInterval(statsIntervalId);
+  // statsIntervalId が存在する場合のみクリア
+  if (statsIntervalId) {
+    clearInterval(statsIntervalId);
+    statsIntervalId = null;
+  }
+
   isStreamReady = !stream_warmup;
   streamVideoOpacity = 0;
   console.log('Stopped peer connection');
@@ -364,21 +379,45 @@ async function fetchWithRetries(url, options, retries = 1) {
 // --- 音声認識とGPT/TTSの処理 ---
 
 let recognition;
+let recognizing = false; // 音声認識中かどうかを示すフラグ
 
 function startSpeechRecognition() {
   recognition = new webkitSpeechRecognition() || new SpeechRecognition();
   recognition.lang = 'ja-JP'; // 言語を設定
+
+  recognition.onaudiostart = () => {
+    console.log('音声入力開始');
+    recognizing = true;
+  };
+
+  recognition.onaudioend = () => {
+    console.log('音声入力終了');
+    recognizing = false;
+  };
+
+  recognition.onspeechstart = () => {
+    console.log('音声認識開始');
+    statusLabel.textContent = "音声認識開始";
+  };
+
+  recognition.onspeechend = () => {
+    console.log('音声認識終了');
+    recognition.stop(); // 音声認識終了後、明示的に停止
+  };
 
   recognition.onresult = async (event) => {
     const transcript = event.results[0][0].transcript;
     console.log('認識結果:', transcript);
     statusLabel.textContent = "認識結果: " + transcript;
 
-    const gptResponse = await getGPTResponse(transcript);
-    const audioURL = await synthesizeSpeech(gptResponse);
+    
+    if (transcript.trim() !== '') { // 無音状態はスキップ
+      const gptResponse = await getGPTResponse(transcript);
+      const audioURL = await synthesizeSpeech(gptResponse);
 
-    // D-ID APIに音声を送信
-    sendScriptToDId(audioURL);
+      // D-ID APIに音声を送信
+      sendScriptToDId(audioURL);
+    }
   };
 
   recognition.onerror = (event) => {
@@ -388,9 +427,10 @@ function startSpeechRecognition() {
   };
 
   recognition.onend = () => {
-    console.log('音声認識終了');
-    // 認識終了後、再度開始
-    recognition.start();
+    console.log('音声認識終了 (onend)');
+    if (recognizing) { // 音声入力中であれば、認識を再開
+      recognition.start();
+    }
   };
 
   recognition.start();
@@ -409,10 +449,10 @@ async function getGPTResponse(prompt) {
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: 'あなたはとても賢いAIアシスタントです。あなたはステラという女性になりきってユーザーに楽しい会話を提供します。'},
+        { role: 'system', content: 'ステラとしてロールプレイしてください。ステラは可愛くて綺麗でそれでいてカッコいい一面もありちょっと抜けているギャップも持ち合わせ、明るい性格で計算がなく分け隔てのない人付き合いができ、他人の幸福を自分のことのように喜ぶことができて、他人の不幸は自分のことのように悲しむことができて、決して人の悪口を言わず、決して人を貶めることもせず、自分を押し売りすることなく常に人の話に耳を傾け、地味でもなく派手でもなく品の良い清潔感のある服装を好み、真珠のようなきめ細やかな肌を持ち健康的でダイエット知らずなプロポーションをしていて、なおかつ頭脳明晰で男前なところもあり、仕事も私生活も充実しまくっているのにそれ等を一切鼻にかけない親しみ易い女性です。'},
         { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
+      temperature: 0.3,
       max_tokens: 100
     })
   });
