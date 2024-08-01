@@ -41,12 +41,11 @@ const idleVideoElement = document.getElementById('idle-video-element');
 const streamVideoElement = document.getElementById('stream-video-element');
 idleVideoElement.setAttribute('playsinline', '');
 streamVideoElement.setAttribute('playsinline', '');
-const statusContainer = document.querySelector('.status-container');
 const statusLabel = document.getElementById('status-label');
 
 const presenterInputByService = {
   talks: {
-    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela2_removebg.png',  // 背景を消したら通った。サーバーにアップロードしたファイルでないと D-iD の API は受け取れない
+    source_url: 'https://huggingface.co/datasets/smorce/IconAssets/resolve/main/stela_removebg.png',  // 背景を消したら通った。サーバーにアップロードしたファイルでないと D-iD の API は受け取れない
   },
   clips: {
     presenter_id: 'rian-lZC6MmWfC1',
@@ -63,11 +62,7 @@ connectButton.onclick = async () => {
   stopAllStreams();
   closePC();
 
-  statusContainer.className = 'status-container connecting';
   statusLabel.textContent = "接続中...";
-
-  // stream_warmup を false に設定して、アイドルストリーミングはしない
-  const stream_warmup = false;
 
   const sessionResponse = await fetchWithRetries(`${DID_API.url}/${DID_API.service}/streams`, {
     method: 'POST',
@@ -86,7 +81,6 @@ connectButton.onclick = async () => {
     sessionClientAnswer = await createPeerConnection(offer, iceServers);
   } catch (e) {
     console.error('Error during streaming setup', e);
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "エラー発生";
     stopAllStreams();
     closePC();
@@ -105,7 +99,6 @@ connectButton.onclick = async () => {
     }),
   });
 
-  statusContainer.className = 'status-container connected';
   statusLabel.textContent = "接続完了";
 };
 
@@ -117,7 +110,6 @@ startButton.onclick = () => {
   ) {
     startSpeechRecognition();
   } else {
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "まだ接続されていません";
   }
 };
@@ -136,7 +128,6 @@ destroyButton.onclick = async () => {
   stopAllStreams();
   closePC();
 
-  statusContainer.className = 'status-container error';
   statusLabel.textContent = "接続を切断しました";
 };
 
@@ -181,7 +172,6 @@ function onIceConnectionStateChange() {
   if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'closed') {
     stopAllStreams();
     closePC();
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "接続が切断されました";
   }
 }
@@ -194,8 +184,7 @@ function onConnectionStateChange() {
       if (!isStreamReady) {
         console.log('Forcing stream/ready');
         isStreamReady = true;
-        statusContainer.className = 'status-container ready';
-        statusLabel.textContent = "準備完了1";
+        statusLabel.textContent = "準備完了";
       }
     }, 5000);
   }
@@ -224,7 +213,6 @@ function onVideoStatusChange(videoIsPlaying, stream) {
 function onTrack(event) {
   if (!event.track) return;
 
-  // ビデオフレームの受信を定期的にチェック
   statsIntervalId = setInterval(async () => {
     const stats = await peerConnection.getStats(event.track);
     stats.forEach((report) => {
@@ -256,7 +244,6 @@ function onStreamEvent(message) {
         setTimeout(() => {
           console.log('Stream ready');
           isStreamReady = true;
-          statusContainer.className = 'status-container ready';
           statusLabel.textContent = "準備完了";
         }, 1000);
         break;
@@ -311,7 +298,7 @@ function setStreamVideoElement(stream) {
 }
 
 function playIdleVideo() {
-  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela2_idle.mp4';
+  idleVideoElement.src = DID_API.service == 'clips' ? 'assets/rian_idle.mp4' : 'assets/stela_idle.mp4';
 }
 
 function stopAllStreams() {
@@ -381,12 +368,11 @@ function startSpeechRecognition() {
     const audioURL = await synthesizeSpeech(gptResponse);
 
     // D-ID APIに音声を送信
-    sendScriptToDId(audioURL);
+    sendScriptToDId(audioURL);    // ★ await は不要か？？
   };
 
   recognition.onerror = (event) => {
     console.error('音声認識エラー:', event.error);
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "音声認識エラー";
   };
 
@@ -416,7 +402,7 @@ async function getGPTResponse(prompt) {
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
-      max_tokens: 100
+      max_tokens: 30
     })
   });
 
@@ -427,7 +413,44 @@ async function getGPTResponse(prompt) {
   return gptMessage;
 }
 
-// 音声ファイルをアップロード
+// ローカルサーバーに音声ファイルのアップロード機能を追加 → ローカルサーバーでは動かなかった
+// async function uploadAudio(audioBlob) {
+//   const formData = new FormData();
+//   formData.append('audio', audioBlob, 'audio.mp3');
+
+//   const response = await fetch('/upload-audio', {
+//     method: 'POST',
+//     body: formData
+//   });
+
+//   if (!response.ok) {
+//     throw new Error('音声のアップロードに失敗しました');
+//   }
+
+//   const { audioPath } = await response.json();
+//   console.log('音声ファイルのアップロードに成功しました。アップしたファイルパス:', audioPath);
+//   return audioPath;
+// }
+
+// 一時的にファイルをアップロードし、公開URLを生成できるサービス一覧
+// Temporary File Upload:
+// URL: https://tmpfiles.org/
+// 特徴: 最大5GBまでのファイルを14日間保存可能。APIも提供しています。
+// File.io:
+// URL: https://www.file.io/
+// 特徴: ファイルは1回ダウンロードされると自動的に削除されます。APIも利用可能です。
+// WeTransfer:
+// URL: https://wetransfer.com/
+// 特徴: 最大2GBまでのファイルを7日間保存可能。メールアドレス不要でリンク共有ができます。
+// Gofile:
+// URL: https://gofile.io/
+// 特徴: 無制限のファイルサイズ、無制限の保存期間を提供しています。
+// Catbox:
+// URL: https://catbox.moe/
+// 特徴: 最大200MBまでのファイルをアップロード可能。永続的なホスティングも提供しています。
+// 0x0.st:
+// URL: https://0x0.st/
+// 特徴: コマンドラインからも使用可能な簡単なファイル共有サービス。
 async function uploadAudio(audioBlob) {
   // tmpfiles.org APIを使用してファイルをアップロード
   const formData = new FormData();
@@ -448,8 +471,7 @@ async function uploadAudio(audioBlob) {
     // tmpfiles.orgの応答からダウンロードURLを取得
     const downloadUrl = data.data.url.replace('https://tmpfiles.org/', 'https://tmpfiles.org/dl/');
     
-    console.log('音声ファイルのアップロードに成功しました。');
-    console.log('アップしたファイルURL:', downloadUrl);
+    console.log('音声ファイルのアップロードに成功しました。アップしたファイルURL:', downloadUrl);
     return downloadUrl;
   } catch (error) {
     console.error('音声のアップロード中にエラーが発生しました:', error);
@@ -489,7 +511,6 @@ async function synthesizeSpeech(text) {
     return audioURL;
   } catch (error) {
     console.error('音声合成エラー:', error);
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "音声合成エラー";
     // エラー処理を実装
   }
@@ -530,7 +551,6 @@ async function sendScriptToDId(audioURL) {
 
   if (!playResponse.ok) {
     console.error('D-ID API Error:', playResponse.status, await playResponse.text());
-    statusContainer.className = 'status-container error';
     statusLabel.textContent = "D-ID API エラー";
     return;
   }
