@@ -66,6 +66,9 @@ connectButton.onclick = async () => {
   statusContainer.className = 'status-container connecting';
   statusLabel.textContent = "接続中...";
 
+  // stream_warmup を false に設定して、アイドルストリーミングはしない
+  const stream_warmup = false;
+
   const sessionResponse = await fetchWithRetries(`${DID_API.url}/${DID_API.service}/streams`, {
     method: 'POST',
     headers: {
