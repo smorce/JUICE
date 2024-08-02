@@ -195,7 +195,7 @@ function onConnectionStateChange() {
         console.log('Forcing stream/ready');
         isStreamReady = true;
         statusContainer.className = 'status-container ready';
-        statusLabel.textContent = "準備完了1";
+        statusLabel.textContent = "準備完了";
       }
     }, 5000);
   }
