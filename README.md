@@ -150,7 +150,8 @@ npm run dev
 [![Stela AI Chatbot サンプル](https://img.youtube.com/vi/tEE7nMcRrZU/0.jpg)](https://www.youtube.com/watch?v=tEE7nMcRrZU)
 
 <br>
-音声のご提供：Style Bert VITS2: ずんだもん
+音声のご提供：Style Bert VITS2: ずんだもん<br>
+※この動画は Style Bert VITS2 のライセンスに準拠し「GNU Affero General Public License v3.0」ライセンスが動画に適用されます。
 
 ## 貢献方法
 
@@ -158,7 +159,7 @@ npm run dev
 
 ## ライセンス
 
-MITライセンス
+ソースコード: MITライセンス
 
 ## 謝辞
 
