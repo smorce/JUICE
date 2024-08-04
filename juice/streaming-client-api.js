@@ -245,6 +245,7 @@ function onStreamEvent(message) {
     switch (event) {
       case 'stream/started':
         console.log('Stream started');
+        statusLabel.textContent = "ストリーミング中";
         break;
       case 'stream/done':
         console.log('Stream done');
@@ -559,5 +560,5 @@ async function sendScriptToDId(audioURL) {
     return;
   }
 
-  statusLabel.textContent = "ストリーミング中";
+  statusLabel.textContent = "ストリーミング開始";
 }
