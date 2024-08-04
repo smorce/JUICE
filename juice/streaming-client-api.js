@@ -30,7 +30,7 @@ let sessionId;
 let sessionClientAnswer;
 
 let statsIntervalId = null;
-// let lastBytesReceived;
+let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
 
@@ -115,7 +115,9 @@ startButton.onclick = () => {
     (peerConnection?.signalingState === 'stable' || peerConnection?.iceConnectionState === 'connected') &&
     isStreamReady
   ) {
-    startSpeechRecognition();
+    if (!recognizing) { // 音声認識中でなければ開始
+      startSpeechRecognition();
+    }
   } else {
     statusContainer.className = 'status-container error';
     statusLabel.textContent = "まだ接続されていません";
@@ -236,7 +238,17 @@ function onTrack(event) {
     if (peerConnection) {
       try {
         const stats = await peerConnection.getStats(event.track);
-        // ... (既存のコード)
+        stats.forEach((report) => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
+
+            if (videoStatusChanged) {
+              videoIsPlaying = report.bytesReceived > lastBytesReceived;
+              onVideoStatusChange(videoIsPlaying, event.streams[0]);
+            }
+            lastBytesReceived = report.bytesReceived;
+          }
+        });
       } catch (error) {
         console.error('Error getting stats:', error);
         clearInterval(statsIntervalId);
@@ -387,33 +399,24 @@ let recognizing = false; // 音声認識中かどうかを示すフラグ
 function startSpeechRecognition() {
   recognition = new webkitSpeechRecognition() || new SpeechRecognition();
   recognition.lang = 'ja-JP'; // 言語を設定
+  recognition.continuous = true; // 連続音声認識を有効にする
 
-  recognition.onaudiostart = () => {
-    console.log('音声入力開始');
-    recognizing = true;
-  };
-
-  recognition.onaudioend = () => {
-    console.log('音声入力終了');
-    recognizing = false;
-  };
-
-  recognition.onspeechstart = () => {
-    console.log('音声認識開始');
+  recognition.onstart = () => {
+    console.log('音声認識開始 (onstart)');
     statusLabel.textContent = "音声認識開始";
   };
 
-  recognition.onspeechend = () => {
-    console.log('音声認識終了');
-    recognition.stop(); // 音声認識終了後、明示的に停止
+  recognition.onend = () => {
+    console.log('音声認識終了 (onend)');
+    // 音声認識が停止した場合、自動的に再起動
+    recognition.start();
   };
 
   recognition.onresult = async (event) => {
-    const transcript = event.results[0][0].transcript;
+    const transcript = event.results[event.results.length - 1][0].transcript;
     console.log('認識結果:', transcript);
     statusLabel.textContent = "認識結果: " + transcript;
 
-    
     if (transcript.trim() !== '') { // 無音状態はスキップ
       const gptResponse = await getGPTResponse(transcript);
       const audioURL = await synthesizeSpeech(gptResponse);
@@ -426,18 +429,12 @@ function startSpeechRecognition() {
   recognition.onerror = (event) => {
     console.error('音声認識エラー:', event.error);
     statusContainer.className = 'status-container error';
-    statusLabel.textContent = "音声認識エラー";
-  };
-
-  recognition.onend = () => {
-    console.log('音声認識終了 (onend)');
-    if (recognizing) { // 音声入力中であれば、認識を再開
-      recognition.start();
-    }
+    statusLabel.textContent = "音声認識エラー: " + event.error;
+    // エラー発生時にも音声認識を再起動
+    recognition.start();
   };
 
   recognition.start();
-  statusLabel.textContent = "音声認識開始";
 }
 
 async function getGPTResponse(prompt) {
