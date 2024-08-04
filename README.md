@@ -147,7 +147,10 @@ npm run dev
 
 ## サンプル動画
 
-https://youtu.be/tEE7nMcRrZU
+[![Stela AI Chatbot サンプル](https://img.youtube.com/vi/tEE7nMcRrZU/0.jpg)](https://www.youtube.com/watch?v=tEE7nMcRrZU)
+
+<br>
+音声のご提供：Style Bert VITS2: ずんだもん
 
 ## 貢献方法
 
