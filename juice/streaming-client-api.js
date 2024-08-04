@@ -29,7 +29,7 @@ let streamId;
 let sessionId;
 let sessionClientAnswer;
 
-let statsIntervalId = null;
+let statsIntervalId;
 let lastBytesReceived;
 let videoIsPlaying = false;
 let streamVideoOpacity = 0;
@@ -65,9 +65,6 @@ connectButton.onclick = async () => {
 
   statusContainer.className = 'status-container connecting';
   statusLabel.textContent = "接続中...";
-
-  // stream_warmup を false に設定して、アイドルストリーミングはしない
-  const stream_warmup = false;
 
   const sessionResponse = await fetchWithRetries(`${DID_API.url}/${DID_API.service}/streams`, {
     method: 'POST',
@@ -115,9 +112,7 @@ startButton.onclick = () => {
     (peerConnection?.signalingState === 'stable' || peerConnection?.iceConnectionState === 'connected') &&
     isStreamReady
   ) {
-    if (!recognizing) { // 音声認識中でなければ開始
-      startSpeechRecognition();
-    }
+    startSpeechRecognition();
   } else {
     statusContainer.className = 'status-container error';
     statusLabel.textContent = "まだ接続されていません";
@@ -197,7 +192,7 @@ function onConnectionStateChange() {
         console.log('Forcing stream/ready');
         isStreamReady = true;
         statusContainer.className = 'status-container ready';
-        statusLabel.textContent = "準備完了";
+        statusLabel.textContent = "準備完了(強制番なので良くない気がする)";
       }
     }, 5000);
   }
@@ -223,42 +218,23 @@ function onVideoStatusChange(videoIsPlaying, stream) {
   idleVideoElement.style.opacity = 1 - streamVideoOpacity;
 }
 
-// ビデオフレームを定期的に監視
 function onTrack(event) {
   if (!event.track) return;
 
-  // 既存のインターバルをクリア
-  if (statsIntervalId) {
-    clearInterval(statsIntervalId);
-    statsIntervalId = null;
-  }
-
-  // 新しいインターバルを設定
+  // ビデオフレームの受信を定期的にチェック
   statsIntervalId = setInterval(async () => {
-    if (peerConnection) {
-      try {
-        const stats = await peerConnection.getStats(event.track);
-        stats.forEach((report) => {
-          if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
+    const stats = await peerConnection.getStats(event.track);
+    stats.forEach((report) => {
+      if (report.type === 'inbound-rtp' && report.kind === 'video') {
+        const videoStatusChanged = videoIsPlaying !== report.bytesReceived > lastBytesReceived;
 
-            if (videoStatusChanged) {
-              videoIsPlaying = report.bytesReceived > lastBytesReceived;
-              onVideoStatusChange(videoIsPlaying, event.streams[0]);
-            }
-            lastBytesReceived = report.bytesReceived;
-          }
-        });
-      } catch (error) {
-        console.error('Error getting stats:', error);
-        clearInterval(statsIntervalId);
-        statsIntervalId = null;
+        if (videoStatusChanged) {
+          videoIsPlaying = report.bytesReceived > lastBytesReceived;
+          onVideoStatusChange(videoIsPlaying, event.streams[0]);
+        }
+        lastBytesReceived = report.bytesReceived;
       }
-    } else {
-      console.log('PeerConnection is null, clearing interval');
-      clearInterval(statsIntervalId);
-      statsIntervalId = null;
-    }
+    });
   }, 500);
 }
 
@@ -273,6 +249,8 @@ function onStreamEvent(message) {
       case 'stream/done':
         console.log('Stream done');
         statusLabel.textContent = "ストリーミング終了";
+        // ストリーミング終了後、音声認識を再開
+        startSpeechRecognition();
         break;
       case 'stream/ready':
         setTimeout(() => {
@@ -357,12 +335,7 @@ function closePC(pc = peerConnection) {
   pc.removeEventListener('track', onTrack, true);
   pc.removeEventListener('onmessage', onStreamEvent, true);
 
-  // statsIntervalId が存在する場合のみクリア
-  if (statsIntervalId) {
-    clearInterval(statsIntervalId);
-    statsIntervalId = null;
-  }
-
+  clearInterval(statsIntervalId);
   isStreamReady = !stream_warmup;
   streamVideoOpacity = 0;
   console.log('Stopped peer connection');
@@ -394,47 +367,51 @@ async function fetchWithRetries(url, options, retries = 1) {
 // --- 音声認識とGPT/TTSの処理 ---
 
 let recognition;
-let recognizing = false; // 音声認識中かどうかを示すフラグ
+let isRecognitionActive = false;    // 音声認識の状態を管理するフラグ
 
 function startSpeechRecognition() {
+  if (isRecognitionActive) return; // すでに実行中なら何もしない
+  
+  isRecognitionActive = true;
   recognition = new webkitSpeechRecognition() || new SpeechRecognition();
-  recognition.lang = 'ja-JP'; // 言語を設定
-  recognition.continuous = true; // 連続音声認識を有効にする
-
-  recognition.onstart = () => {
-    console.log('音声認識開始 (onstart)');
-    statusLabel.textContent = "音声認識開始";
-  };
-
-  recognition.onend = () => {
-    console.log('音声認識終了 (onend)');
-    // 音声認識が停止した場合、自動的に再起動
-    recognition.start();
-  };
+  recognition.lang = 'ja-JP';
+  recognition.continuous = true; // 連続認識する
 
   recognition.onresult = async (event) => {
-    const transcript = event.results[event.results.length - 1][0].transcript;
+    const transcript = event.results[0][0].transcript;
     console.log('認識結果:', transcript);
     statusLabel.textContent = "認識結果: " + transcript;
 
-    if (transcript.trim() !== '') { // 無音状態はスキップ
-      const gptResponse = await getGPTResponse(transcript);
-      const audioURL = await synthesizeSpeech(gptResponse);
+    // 音声認識を停止
+    stopSpeechRecognition();
 
-      // D-ID APIに音声を送信
-      sendScriptToDId(audioURL);
-    }
+    const gptResponse = await getGPTResponse(transcript);
+    const audioURL = await synthesizeSpeech(gptResponse);
+    await sendScriptToDId(audioURL);
   };
 
   recognition.onerror = (event) => {
     console.error('音声認識エラー:', event.error);
     statusContainer.className = 'status-container error';
-    statusLabel.textContent = "音声認識エラー: " + event.error;
-    // エラー発生時にも音声認識を再起動
-    recognition.start();
+    statusLabel.textContent = "音声認識エラー";
+    stopSpeechRecognition();
+  };
+
+  recognition.onend = () => {
+    console.log('音声認識終了');
+    isRecognitionActive = false;
   };
 
   recognition.start();
+  statusLabel.textContent = "音声認識開始";
+}
+
+// 音声認識を停止する関数
+function stopSpeechRecognition() {
+  if (recognition) {
+    recognition.stop();
+    isRecognitionActive = false;
+  }
 }
 
 async function getGPTResponse(prompt) {
