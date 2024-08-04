@@ -250,7 +250,9 @@ function onStreamEvent(message) {
         console.log('Stream done');
         statusLabel.textContent = "ストリーミング終了";
         // ストリーミング終了後、音声認識を再開
-        startSpeechRecognition();
+        setTimeout(() => {
+          startSpeechRecognition();
+        }, 1000); // 1秒後に音声認識を開始
         break;
       case 'stream/ready':
         setTimeout(() => {
@@ -370,19 +372,26 @@ let recognition;
 let isRecognitionActive = false;    // 音声認識の状態を管理するフラグ
 
 function startSpeechRecognition() {
-  if (isRecognitionActive) return; // すでに実行中なら何もしない
-  
+  if (isRecognitionActive) {
+    console.log('音声認識はすでに実行中です');
+    return;
+  }
   isRecognitionActive = true;
-  recognition = new webkitSpeechRecognition() || new SpeechRecognition();
+  recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
   recognition.lang = 'ja-JP';
-  recognition.continuous = true; // 連続認識する
+  recognition.continuous = true;
+
+  recognition.onstart = () => {
+    console.log('音声認識開始');
+    statusLabel.textContent = "音声認識開始";
+  };
 
   recognition.onresult = async (event) => {
-    const transcript = event.results[0][0].transcript;
+    const transcript = event.results[event.results.length - 1][0].transcript;
     console.log('認識結果:', transcript);
     statusLabel.textContent = "認識結果: " + transcript;
 
-    // 音声認識を停止
+    // 音声認識を一時停止
     stopSpeechRecognition();
 
     const gptResponse = await getGPTResponse(transcript);
@@ -391,19 +400,27 @@ function startSpeechRecognition() {
   };
 
   recognition.onerror = (event) => {
+    if (event.error === 'no-speech') {
+      console.log('音声入力なし、継続してリスニング');
+      return; // no-speech エラーを無視
+    }
     console.error('音声認識エラー:', event.error);
     statusContainer.className = 'status-container error';
     statusLabel.textContent = "音声認識エラー";
-    stopSpeechRecognition();
+    isRecognitionActive = false;
+    // エラー後に再開
+    setTimeout(startSpeechRecognition, 1000);
   };
 
   recognition.onend = () => {
     console.log('音声認識終了');
-    isRecognitionActive = false;
+    if (isRecognitionActive) {
+      // まだアクティブな場合は再開
+      recognition.start();
+    }
   };
 
   recognition.start();
-  statusLabel.textContent = "音声認識開始";
 }
 
 // 音声認識を停止する関数
