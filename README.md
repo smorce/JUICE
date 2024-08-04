@@ -151,9 +151,7 @@ npm run dev
 
 <br>
 音声のご提供：Style Bert VITS2: ずんだもん<br>
-※この動画は Style Bert VITS2 のライセンスに準拠し<br>
-GNU Affero General Public License v3.0<br>
-が動画に適用されます。
+※この動画は Style Bert VITS2 のライセンスに準拠し「GNU Affero General Public License v3.0」ライセンスがが動画に適用されます。
 
 ## 貢献方法
 
