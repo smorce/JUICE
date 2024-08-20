@@ -73,6 +73,8 @@ JUICEは、最先端のAI技術を駆使して開発された、超高速応答�
     - js-yaml: YAMLファイルの読み込み
     - Web Speech API: 音声認識
     - Fetch API: API通信
+    - Multer: ファイルアップロード
+    - Node-fetch: HTTP通信
 - **API:**
     - D-ID API: 動画生成
     - OpenAI API: AIチャットボット
@@ -165,3 +167,5 @@ npm run dev
 
 - このプロジェクトは、D-ID、OpenAI、ElevenLabsのAPIを利用しています。
 - 開発にあたり、多くのオープンソースソフトウェアに感謝いたします。
+- 🎉 自動リリースノート生成機能を追加しました。(commit: 761e871) 🟢 🔄
+</readme>
