@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: 
       name: pypi
-      url: https://pypi.org/p/JUICE
+      url: https://pypi.org/p/iris-coon
     permissions:
       id-token: write
     steps:
